@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport Truck Profit Calculator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS Library for Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+</head>
+<body class="bg-slate-50 font-sans">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-md py-6 px-8">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-bold flex items-center gap-2">🚛 Transport Profit Mobile App</h1>
+            <button onclick="downloadSampleExcel()" class="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow">
+                📥 Sample Excel Download
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Step 1: Excel File Upload -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 text-center">
+            <h2 class="text-lg font-bold text-slate-800 mb-2">📁 Step 1: Excel Sheet Upload Karein</h2>
+            <p class="text-sm text-slate-500 mb-4">(.xlsx ya .xls file select karein)</p>
+            <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="handleExcelUpload(event)" 
+                class="block w-full max-w-md mx-auto text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-2">
+        </div>
+
+        <!-- Step 2: Column Mapping (Initially Hidden) -->
+        <div id="mappingSection" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 hidden">
+            <h2 class="text-lg font-bold text-slate-800 mb-2">⚙️ Step 2: Columns Match Karein</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Truck Number Column:</label>
+                    <select id="mapTruck" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Route / Trip Column:</label>
+                    <select id="mapRoute" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Total Kamai / Freight Column:</label>
+                    <select id="mapFreight" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50"></select>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-slate-600 mb-2">Kharche (Expenses) ke Columns (Multiple select ke liye Ctrl dabayein):</label>
+                <select id="mapExpenses" multiple class="w-full p-2.5 border rounded-lg text-sm bg-slate-50 h-32"></select>
+            </div>
+
+            <button onclick="calculateProfit()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition shadow">
+                🚀 Profit Calculate Karein
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-slate-500 text-sm font-medium">Total Freight (Kamai)</p>
+                <h3 id="lblTotalIncome" class="text-2xl font-bold text-slate-800 mt-1">₹ 0.00</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-slate-500 text-sm font-medium">Total Kharcha (Expenses)</p>
+                <h3 id="lblTotalExpense" class="text-2xl font-bold text-rose-600 mt-1">₹ 0.00</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-slate-500 text-sm font-medium">Net Profit (Shuddh Munafa)</p>
+                <h3 id="lblNetProfit" class="text-2xl font-bold text-emerald-600 mt-1">₹ 0.00</h3>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <p class="text-slate-500 text-sm font-medium">Total Trips</p>
+                <h3 id="lblTotalTrips" class="text-2xl font-bold text-indigo-600 mt-1">0</h3>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Truck-wise Summary Table -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">🚛 Truck-Wise Performance Summary</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">Truck No</th>
+                                <th class="p-3">Trips</th>
+                                <th class="p-3">Kamai</th>
+                                <th class="p-3">Kharcha</th>
+                                <th class="p-3">Net Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="truckSummaryTableBody">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-400">Pehle Excel file upload karein.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trip-wise Detailed Table -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-4">📑 Trip-Wise Details</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">Truck No</th>
+                                <th class="p-3">Route</th>
+                                <th class="p-3">Freight</th>
+                                <th class="p-3">Expense</th>
+                                <th class="p-3">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tripTableBody">
+                            <tr><td colspan="5" class="p-4 text-center text-slate-400">Data yahan dikhega.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let rawExcelData = [];
+        let columnNames = [];
+
+        function downloadSampleExcel() {
+            const sampleData = [
+                { Truck_No: "UP14-AB-1234", Route: "Delhi to Mumbai", Freight_Amount: 90000, Diesel_Cost: 40000, Toll_Tax: 7000, Driver_Expense: 8000, Other_Expense: 3000 },
+                { Truck_No: "UP14-AB-1234", Route: "Mumbai to Delhi", Freight_Amount: 85000, Diesel_Cost: 38000, Toll_Tax: 6800, Driver_Expense: 8000, Other_Expense: 1200 },
+                { Truck_No: "HR55-XY-9876", Route: "Ghaziabad to Jaipur", Freight_Amount: 40000, Diesel_Cost: 16000, Toll_Tax: 2500, Driver_Expense: 3500, Other_Expense: 800 },
+                { Truck_No: "DL01-GC-4567", Route: "Noida to Lucknow", Freight_Amount: 50000, Diesel_Cost: 20000, Toll_Tax: 3200, Driver_Expense: 4500, Other_Expense: 1500 }
+            ];
+            const worksheet = XLSX.utils.json_to_sheet(sampleData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Trips");
+            XLSX.writeFile(workbook, "sample_transport_data.xlsx");
+        }
+
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    rawExcelData = XLSX.utils.sheet_to_json(worksheet);
+                    if (rawExcelData.length === 0) {
+                        alert("Excel file khali hai!");
+                        return;
+                    }
+
+                    columnNames = Object.keys(rawExcelData[0]);
+                    populateDropdowns();
+                    document.getElementById("mappingSection").classList.remove("hidden");
+                } catch (error) {
+                    alert("Excel file read karne mein error aaya: " + error.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function populateDropdowns() {
+            let tSelect = document.getElementById("mapTruck");
+            let rSelect = document.getElementById("mapRoute");
+            let fSelect = document.getElementById("mapFreight");
+            let eSelect = document.getElementById("mapExpenses");
+
+            tSelect.innerHTML = "";
+            rSelect.innerHTML = "";
+            fSelect.innerHTML = "";
+            eSelect.innerHTML = "";
+
+            columnNames.forEach((col) => {
+                tSelect.innerHTML += `<option value="${col}">${col}</option>`;
+                rSelect.innerHTML += `<option value="${col}">${col}</option>`;
+                fSelect.innerHTML += `<option value="${col}">${col}</option>`;
+                eSelect.innerHTML += `<option value="${col}">${col}</option>`;
+            });
+
+            columnNames.forEach(col => {
+                let lower = col.toLowerCase();
+                if (lower.includes('truck') || lower.includes('gaadi') || lower.includes('no')) tSelect.value = col;
+                if (lower.includes('route') || lower.includes('trip') || lower.includes('dest')) rSelect.value = col;
+                if (lower.includes('freight') || lower.includes('income') || lower.includes('bhada') || lower.includes('kamai')) fSelect.value = col;
+            });
+        }
+
+        function calculateProfit() {
+            let truckCol = document.getElementById("mapTruck").value;
+            let routeCol = document.getElementById("mapRoute").value;
+            let freightCol = document.getElementById("mapFreight").value;
+            let expenseSelect = document.getElementById("mapExpenses");
+            let selectedExpenseCols = Array.from(expenseSelect.selectedOptions).map(opt => opt.value);
+
+            let totalIncome = 0;
+            let totalExpense = 0;
+            let truckMap = {};
+            let tripsList = [];
+
+            rawExcelData.forEach(row => {
+                let truckNo = String(row[truckCol] || "UNKNOWN").toUpperCase();
+                let route = String(row[routeCol] || "N/A");
+                let freight = parseFloat(row[freightCol]) || 0;
+
+                let expense = 0;
+                selectedExpenseCols.forEach(expCol => {
+                    expense += parseFloat(row[expCol]) || 0;
+                });
+
+                let profit = freight - expense;
+                totalIncome += freight;
+                totalExpense += expense;
+
+                if (!truckMap[truckNo]) {
+                    truckMap[truckNo] = { tripsCount: 0, income: 0, expense: 0, profit: 0 };
+                }
+                truckMap[truckNo].tripsCount += 1;
+                truckMap[truckNo].income += freight;
+                truckMap[truckNo].expense += expense;
+                truckMap[truckNo].profit += profit;
+
+                tripsList.getPush = tripsList.push({ truckNo, route, freight, expense, profit });
+            });
+
+            let netProfit = totalIncome - totalExpense;
+
+            document.getElementById("lblTotalIncome").innerText = `₹ ${totalIncome.toLocaleString()}`;
+            document.getElementById("lblTotalExpense").innerText = `₹ ${totalExpense.toLocaleString()}`;
+            document.getElementById("lblNetProfit").innerText = `₹ ${netProfit.toLocaleString()}`;
+            document.getElementById("lblTotalTrips").innerText = tripsList.length;
+
+            let tripBody = document.getElementById("tripTableBody");
+            tripBody.innerHTML = "";
+            tripsList.forEach(t => {
+                tripBody.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3 font-medium text-slate-800">${t.truckNo}</td>
+                        <td class="p-3">${t.route}</td>
+                        <td class="p-3 text-emerald-600 font-semibold">₹${t.freight.toLocaleString()}</td>
+                        <td class="p-3 text-rose-600">₹${t.expense.toLocaleString()}</td>
+                        <td class="p-3 font-bold ${t.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}">₹${t.profit.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            let truckBody = document.getElementById("truckSummaryTableBody");
+            truckBody.innerHTML = "";
+            for (let truck in truckMap) {
+                let d = truckMap[truck];
+                truckBody.innerHTML += `
+                    <tr class="project-row border-b hover:bg-slate-50">
+                        <td class="p-3 font-bold text-slate-800">${truck}</td>
+                        <td class="p-3">${d.tripsCount}</td>
+                        <td class="p-3 text-emerald-600">₹${d.income.toLocaleString()}</td>
+                        <td class="p-3 text-rose-600">₹${d.expense.toLocaleString()}</td>
+                        <td class="p-3 font-bold ${d.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}">₹${d.profit.toLocaleString()}</td>
+                    </tr>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
